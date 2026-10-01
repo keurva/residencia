@@ -1,0 +1,30 @@
+{
+  "id": "20260928T014303-622647000",
+  "createdAt": "2026-09-28T01:43:03.622647Z",
+  "source": "install",
+  "checksum": "0e64c0a411535c8b281cd15b5f1d7aa1afdcfb5dfee062580d0188665187d3a8",
+  "compressed": true,
+  "pinned": false,
+  "fileCount": 3,
+  "createdByVersion": "1.0.20",
+  "files": [
+    {
+      "harness": "opencode",
+      "origPath": "/Users/peloponeso/Documents/Projects/cosa/.opencode/skill",
+      "savedPath": "opencode/Users/peloponeso/Documents/Projects/cosa/.opencode/skill",
+      "existedBefore": false
+    },
+    {
+      "harness": "opencode",
+      "origPath": "/Users/peloponeso/Documents/Projects/cosa/.opencode/command",
+      "savedPath": "opencode/Users/peloponeso/Documents/Projects/cosa/.opencode/command",
+      "existedBefore": false
+    },
+    {
+      "harness": "opencode",
+      "origPath": "/Users/peloponeso/Documents/Projects/cosa/opencode.json",
+      "savedPath": "opencode/Users/peloponeso/Documents/Projects/cosa/opencode.json",
+      "existedBefore": false
+    }
+  ]
+}
