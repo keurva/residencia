@@ -1,8 +1,10 @@
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 
 import type { Route } from "./+types/signup";
+import { Button } from "../components/Button";
+import { FormField } from "../components/FormField";
 import { ApiError, signup } from "../lib/api";
-import { sessionCookie } from "../lib/session";
+import { writeClientSession } from "../lib/session";
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_-]+$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -72,11 +74,8 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
 
   try {
     const pair = await signup({ email, username, password });
-    document.cookie = await sessionCookie.serialize({
-      accessToken: pair.access_token,
-      user: pair.user,
-    });
-    return redirect("/");
+    await writeClientSession({ accessToken: pair.access_token, user: pair.user });
+    return redirect("/practice");
   } catch (error) {
     if (error instanceof ApiError) {
       if (error.status === 409) {
@@ -117,7 +116,10 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
     }
 
     return data<ActionData>(
-      { errors: { form: "Ocurrió un error inesperado. Inténtalo de nuevo." }, values },
+      {
+        errors: { form: "Ocurrió un error inesperado. Inténtalo de nuevo." },
+        values,
+      },
       { status: 500 },
     );
   }
@@ -133,10 +135,10 @@ export default function Signup({ actionData }: Route.ComponentProps) {
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
       <div className="w-full max-w-md space-y-8">
         <header className="space-y-2 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-3xl font-semibold tracking-tight text-ink">
             Crea tu cuenta
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-ink-2">
             Practica inglés conversacional con IA.
           </p>
         </header>
@@ -144,14 +146,14 @@ export default function Signup({ actionData }: Route.ComponentProps) {
         {errors.form ? (
           <p
             role="alert"
-            className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+            className="rounded-xl border border-red-400/40 bg-danger-soft p-3 text-sm text-danger"
           >
             {errors.form}
           </p>
         ) : null}
 
         <Form method="post" noValidate className="space-y-5">
-          <Field
+          <FormField
             label="Correo electrónico"
             name="email"
             type="email"
@@ -159,7 +161,7 @@ export default function Signup({ actionData }: Route.ComponentProps) {
             defaultValue={values.email}
             error={errors.email}
           />
-          <Field
+          <FormField
             label="Nombre de usuario"
             name="username"
             type="text"
@@ -167,14 +169,14 @@ export default function Signup({ actionData }: Route.ComponentProps) {
             defaultValue={values.username}
             error={errors.username}
           />
-          <Field
+          <FormField
             label="Contraseña"
             name="password"
             type="password"
             autoComplete="new-password"
             error={errors.password}
           />
-          <Field
+          <FormField
             label="Confirmar contraseña"
             name="confirmPassword"
             type="password"
@@ -182,74 +184,21 @@ export default function Signup({ actionData }: Route.ComponentProps) {
             error={errors.confirmPassword}
           />
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-xl bg-blue-600 px-4 py-2.5 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
+          <Button type="submit" disabled={isSubmitting} className="w-full">
             {isSubmitting ? "Creando cuenta…" : "Crear cuenta"}
-          </button>
+          </Button>
         </Form>
 
-        <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-center text-sm text-ink-2">
+          ¿Ya tienes cuenta?{" "}
           <Link
-            to="/"
-            className="font-medium text-blue-700 hover:underline dark:text-blue-500"
+            to="/login"
+            className="rounded-sm font-medium text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            Volver al inicio
+            Inicia sesión
           </Link>
         </p>
       </div>
     </main>
-  );
-}
-
-type FieldProps = {
-  label: string;
-  name: string;
-  type: string;
-  error?: string;
-  autoComplete?: string;
-  defaultValue?: string;
-};
-
-function Field({
-  label,
-  name,
-  type,
-  error,
-  autoComplete,
-  defaultValue,
-}: FieldProps) {
-  const errorId = `${name}-error`;
-
-  return (
-    <div className="space-y-1.5">
-      <label
-        htmlFor={name}
-        className="block text-sm font-medium text-gray-900 dark:text-gray-100"
-      >
-        {label}
-      </label>
-      <input
-        id={name}
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        defaultValue={defaultValue}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
-        className={`block w-full rounded-xl border px-3 py-2 text-gray-900 shadow-sm outline-none focus:ring-2 dark:bg-gray-900 dark:text-gray-100 ${
-          error
-            ? "border-red-400 focus:ring-red-300 dark:border-red-700"
-            : "border-gray-300 focus:border-blue-500 focus:ring-blue-200 dark:border-gray-700"
-        }`}
-      />
-      {error ? (
-        <p id={errorId} className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
-    </div>
   );
 }

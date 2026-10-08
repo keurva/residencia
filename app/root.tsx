@@ -6,6 +6,7 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
+import { MotionConfig } from "motion/react";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -25,7 +26,7 @@ export const links: Route.LinksFunction = () => [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="es">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -33,7 +34,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        {children}
+        <MotionConfig reducedMotion="user">{children}</MotionConfig>
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -46,15 +47,15 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "An unexpected error occurred.";
+  let message = "Ocurrió un error";
+  let details = "No pudimos cargar esta página. Inténtalo de nuevo.";
   let stack: string | undefined;
 
   if (isRouteErrorResponse(error)) {
     message = error.status === 404 ? "404" : "Error";
     details =
       error.status === 404
-        ? "The requested page could not be found."
+        ? "La página que buscas no existe."
         : error.statusText || details;
   } else if (import.meta.env.DEV && error && error instanceof Error) {
     details = error.message;
@@ -62,14 +63,16 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   }
 
   return (
-    <main className="pt-16 p-4 container mx-auto">
-      <h1>{message}</h1>
-      <p>{details}</p>
-      {stack && (
-        <pre className="w-full p-4 overflow-x-auto">
+    <main className="mx-auto max-w-xl px-6 py-16">
+      <h1 className="text-2xl font-semibold tracking-tight text-ink">
+        {message}
+      </h1>
+      <p className="mt-2 text-sm text-ink-2">{details}</p>
+      {stack ? (
+        <pre className="mt-6 w-full overflow-x-auto rounded-lg bg-sunken p-4 text-xs">
           <code>{stack}</code>
         </pre>
-      )}
+      ) : null}
     </main>
   );
 }

@@ -18,18 +18,33 @@ export const sessionCookie = createCookie(SESSION_COOKIE_NAME, {
   maxAge: SESSION_MAX_AGE_SECONDS,
 });
 
+function isValidSession(value: unknown): value is AuthSession {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const session = value as Partial<AuthSession>;
+  return typeof session.accessToken === "string" && Boolean(session.user);
+}
+
 export async function parseSession(
   request: Request,
 ): Promise<AuthSession | null> {
   const parsed = await sessionCookie.parse(request.headers.get("Cookie"));
-  if (!parsed || typeof parsed !== "object") {
+  return isValidSession(parsed) ? parsed : null;
+}
+
+export async function readClientSession(): Promise<AuthSession | null> {
+  if (typeof document === "undefined") {
     return null;
   }
+  const parsed = await sessionCookie.parse(document.cookie);
+  return isValidSession(parsed) ? parsed : null;
+}
 
-  const session = parsed as Partial<AuthSession>;
-  if (typeof session.accessToken !== "string" || !session.user) {
-    return null;
-  }
+export async function writeClientSession(session: AuthSession): Promise<void> {
+  document.cookie = await sessionCookie.serialize(session);
+}
 
-  return session as AuthSession;
+export function clearClientSession(): void {
+  document.cookie = `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
 }
