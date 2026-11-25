@@ -3,6 +3,7 @@ import type {
   ErrorDetail,
   EvaluacionCreate,
   InformeRead,
+  MetricasResumen,
   SesionCreate,
   SesionListado,
   SesionRead,
@@ -10,7 +11,9 @@ import type {
   TokenPair,
   TurnoRespuesta,
   UserCreate,
+  UserEmailUpdate,
   UserLogin,
+  UserPasswordUpdate,
   UserRead,
   ValidationError,
 } from "./api.types";
@@ -27,6 +30,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_credentials: "Correo o contraseña incorrectos.",
+  invalid_password: "La contraseña actual es incorrecta.",
   user_already_exists: "Ese correo o nombre de usuario ya está registrado.",
   user_not_found: "No encontramos esa cuenta.",
   user_not_active: "Esta cuenta está desactivada.",
@@ -231,6 +235,24 @@ export function logout(): Promise<void> {
 
 export function getMe(): Promise<UserRead> {
   return apiFetch<UserRead>("/auth/me");
+}
+
+export function updateEmail(input: UserEmailUpdate): Promise<UserRead> {
+  return apiFetch<UserRead>("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updatePassword(input: UserPasswordUpdate): Promise<void> {
+  return apiFetch<void>("/auth/me/password", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function getMetrics(): Promise<MetricasResumen> {
+  return apiFetch<MetricasResumen>("/metrics");
 }
 
 export function getScenarios(): Promise<CatalogoRead> {

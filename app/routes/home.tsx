@@ -6,7 +6,7 @@ import { parseSession } from "../lib/session";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Cosa | Simulador conversacional de inglés" },
+    { title: "Simulador conversacional de inglés" },
     {
       name: "description",
       content:
@@ -26,7 +26,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <header className="border-b border-line-subtle">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
           <span className="text-base font-semibold tracking-tight text-ink">
-            Cosa
+            Simulador
           </span>
           {loaderData.user ? (
             <span className="text-sm text-ink-2">

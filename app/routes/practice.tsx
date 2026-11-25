@@ -1,20 +1,23 @@
 import { Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { redirect, useLocation, useNavigate } from "react-router";
 
 import type { Route } from "./+types/practice";
 import { Button } from "../components/Button";
 import { TopBar } from "../components/TopBar";
 import { LevelPicker } from "../components/practice/LevelPicker";
+import { PracticeTabs } from "../components/practice/PracticeTabs";
 import { ScenarioGrid } from "../components/practice/ScenarioGrid";
 import { SessionList } from "../components/practice/SessionList";
 import { ApiError, createSession, getScenarios, listSessions } from "../lib/api";
 import type { Escenario, NivelMCER } from "../lib/api.types";
 import { redirectOnAuthError, requireClientSession } from "../lib/auth-guard";
+import { modoDesdeRuta, rutaSesion } from "../lib/practice-mode";
+import { primeSpeech } from "../lib/speech";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Practicar | Cosa" },
+    { title: "Practicar" },
     {
       name: "description",
       content: "Elige escenario y nivel para practicar inglés conversacional.",
@@ -22,7 +25,11 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function clientLoader() {
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+  const pathname = new URL(request.url).pathname;
+  if (pathname === "/practice" || pathname === "/practice/") {
+    throw redirect("/practice/speaking");
+  }
   try {
     const session = await requireClientSession();
     const [catalogo, sesiones] = await Promise.all([
@@ -48,7 +55,14 @@ export function HydrateFallback() {
 
 export default function Practice({ loaderData }: Route.ComponentProps) {
   const { user, catalogo, sesiones } = loaderData;
+  const ultimaSesion = [...sesiones].sort(
+    (a, b) =>
+      new Date(b.fecha_inicio).getTime() -
+      new Date(a.fecha_inicio).getTime(),
+  )[0] ?? null;
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const modo = modoDesdeRuta(pathname);
   const [escenario, setEscenario] = useState<Escenario | null>(null);
   const [nivel, setNivel] = useState<NivelMCER | null>(null);
   const [creating, setCreating] = useState(false);
@@ -62,11 +76,12 @@ export default function Practice({ loaderData }: Route.ComponentProps) {
     if (!escenario || !nivel || creating) {
       return;
     }
+    primeSpeech();
     setCreating(true);
     setError(null);
     try {
-      const sesion = await createSession({ escenario, nivel });
-      navigate(`/practice/${sesion.id_sesion}`);
+      const sesion = await createSession({ escenario, nivel, modo });
+      navigate(rutaSesion(modo, sesion.id_sesion));
     } catch (cause) {
       if (cause instanceof ApiError) {
         if (cause.status === 401) {
@@ -93,14 +108,76 @@ export default function Practice({ loaderData }: Route.ComponentProps) {
       <TopBar user={user} />
 
       <main className="mx-auto max-w-5xl px-6 py-10">
-        <section id="nueva-practica" className="scroll-mt-20">
+
+        <section className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            Nueva práctica
+            ¡Hola, {user.username}!
           </h1>
+          <p className="mt-1 text-sm text-ink-2">
+            ¿Lista para seguir practicando tu inglés?
+          </p>
+        </section>
+
+        <div className="mb-8 mt-8 flex flex-wrap items-center justify-between gap-4">
+              <PracticeTabs />
+          </div>
+
+        {ultimaSesion ? (
+          <section className="mb-8">
+            <h2 className="text-sm font-medium text-ink">
+              Tu última práctica
+            </h2>
+
+            <div className="mt-3 flex flex-col overflow-hidden rounded-xl border border-line bg-raised shadow-raised sm:flex-row">
+              <img
+                src={`/images/scenarios/${ultimaSesion.escenario}.jpg`}
+                alt={escenarioNombres[ultimaSesion.escenario]}
+                className="h-40 w-full object-cover sm:h-auto sm:w-48"
+              />
+
+              <div className="flex flex-1 flex-col justify-center p-5">
+                <h3 className="text-lg font-semibold text-ink">
+                  {escenarioNombres[ultimaSesion.escenario]}
+                </h3>
+
+                <p className="mt-1 text-sm text-ink-2">
+                  Nivel {ultimaSesion.nivel}
+                  {" · "}
+                  {ultimaSesion.modo === "writing" ? "Writing" : "Speaking"}
+                </p>
+
+                <p className="mt-2 text-xs text-ink-3">
+                  {new Intl.DateTimeFormat("es-MX", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(new Date(ultimaSesion.fecha_inicio))}
+                </p>
+
+                <p className="mt-2 text-sm text-ink-2">
+                  Estado:{" "}
+                  <span className="font-medium text-ink">
+                    {ultimaSesion.estado === "concluida"
+                      ? "Concluida"
+                      : ultimaSesion.estado === "pausada"
+                        ? "Pausada"
+                        : "En curso"}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        
+
+        <section id="nueva-practica" className="scroll-mt-20">
+          
           <p className="mt-1 text-sm text-ink-2">
             Elige un escenario y tu nivel. El agente abrirá la conversación en
             inglés.
           </p>
+
+          
 
           <div className="mt-8 space-y-8">
             <div>
@@ -172,6 +249,7 @@ export default function Practice({ loaderData }: Route.ComponentProps) {
               <SessionList
                 sesiones={sesiones}
                 escenarioNombres={escenarioNombres}
+                modo={modo}
               />
             ) : (
               <div className="flex flex-col items-center rounded-xl border border-line-subtle bg-raised px-6 py-10 text-center shadow-raised">

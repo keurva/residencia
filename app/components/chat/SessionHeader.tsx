@@ -2,6 +2,7 @@ import { ArrowLeft, Pause, Play, Volume2, VolumeX, X } from "lucide-react";
 import { Link } from "react-router";
 
 import type { Escenario, EstadoSesion, NivelMCER } from "../../lib/api.types";
+import { rutaPractica, type ModoPractica } from "../../lib/practice-mode";
 import { ESCENARIO_ICON, NIVEL_DESCRIPCION } from "../../lib/ui";
 import { Button } from "../Button";
 import { StatusBadge } from "../StatusBadge";
@@ -10,6 +11,7 @@ type SessionHeaderProps = {
   escenario: Escenario;
   escenarioNombre: string;
   nivel: NivelMCER;
+  modo: ModoPractica;
   estado: EstadoSesion;
   muted: boolean;
   busy: boolean;
@@ -23,6 +25,7 @@ export function SessionHeader({
   escenario,
   escenarioNombre,
   nivel,
+  modo,
   estado,
   muted,
   busy,
@@ -37,7 +40,7 @@ export function SessionHeader({
     <header className="sticky top-0 z-20 border-b border-line-subtle bg-canvas/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-3xl items-center gap-3 px-4">
         <Link
-          to="/practice"
+          to={rutaPractica(modo)}
           aria-label="Volver a tus prácticas"
           title="Volver a tus prácticas"
           className="rounded-lg p-2 text-ink-2 transition-colors duration-150 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"

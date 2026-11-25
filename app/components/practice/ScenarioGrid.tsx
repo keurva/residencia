@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 
 import type { Escenario, EscenarioRead } from "../../lib/api.types";
-import { ESCENARIO_ICON } from "../../lib/ui";
+
 
 type ScenarioGridProps = {
   escenarios: EscenarioRead[];
@@ -21,7 +21,6 @@ export function ScenarioGrid({
       <legend className="sr-only">Escenario</legend>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {escenarios.map((escenario) => {
-          const Icon = ESCENARIO_ICON[escenario.clave];
           const selected = value === escenario.clave;
 
           return (
@@ -41,16 +40,14 @@ export function ScenarioGrid({
                 onChange={() => onChange(escenario.clave)}
                 className="sr-only"
               />
-              <span
-                className={`flex h-9 w-9 items-center justify-center rounded-lg ${
-                  selected
-                    ? "bg-accent text-accent-ink"
-                    : "bg-sunken text-ink-2 group-hover:text-ink"
-                }`}
-                aria-hidden="true"
-              >
-                <Icon className="h-4 w-4" />
-              </span>
+              <div className="-mx-4 -mt-4 h-36 overflow-hidden">
+                <img
+                  src={`/images/scenarios/${escenario.clave}.jpg`}
+                  alt={escenario.nombre}
+                  className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                />
+              </div>
+
               <span>
                 <span className="block text-sm font-medium text-ink">
                   {escenario.nombre}

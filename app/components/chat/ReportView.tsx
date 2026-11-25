@@ -7,18 +7,21 @@ import type {
   EvaluacionSistema,
   InformeRead,
 } from "../../lib/api.types";
+import { rutaPractica, type ModoPractica } from "../../lib/practice-mode";
 import { TIPO_LABEL, formatDateTime } from "../../lib/ui";
 import { EvaluationForm } from "./EvaluationForm";
 
 type ReportViewProps = {
   informe: InformeRead;
   evaluacion: EvaluacionSistema | null;
+  modo: ModoPractica;
   onSubmitEvaluation: (input: EvaluacionCreate) => Promise<void>;
 };
 
 export function ReportView({
   informe,
   evaluacion,
+  modo,
   onSubmitEvaluation,
 }: ReportViewProps) {
   const [evaluationError, setEvaluationError] = useState<string | null>(null);
@@ -39,7 +42,7 @@ export function ReportView({
     <div className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-center justify-between gap-4">
         <Link
-          to="/practice"
+          to={rutaPractica(modo)}
           className="inline-flex items-center gap-1.5 rounded-md text-sm text-ink-2 transition-colors duration-150 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />

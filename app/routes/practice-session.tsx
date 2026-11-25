@@ -1,5 +1,5 @@
 import { Loader2, Pause } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import type { Route } from "./+types/practice-session";
@@ -29,13 +29,16 @@ import type {
   TurnoHistorial,
 } from "../lib/api.types";
 import { redirectOnAuthError, requireClientSession } from "../lib/auth-guard";
+import { modoDesdeRuta, rutaPractica } from "../lib/practice-mode";
 import { cancelSpeech, speak, speechSupported } from "../lib/speech";
 
 const MUTE_KEY = "cosa_voz_silenciada";
 
+let activeSessionViews = 0;
+
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Práctica | Cosa" },
+    { title: "Práctica" },
     {
       name: "description",
       content: "Conversa en inglés con el agente de práctica.",
@@ -43,10 +46,11 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function clientLoader({ params }: Route.ClientLoaderArgs) {
+export async function clientLoader({ params, request }: Route.ClientLoaderArgs) {
   try {
     const session = await requireClientSession();
     const idSesion = params.idSesion;
+    const modo = modoDesdeRuta(new URL(request.url).pathname);
     const [sesion, catalogo] = await Promise.all([
       getSession(idSesion),
       getScenarios(),
@@ -59,7 +63,7 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
         informe = null;
       }
     }
-    return { user: session.user, sesion, catalogo, informe };
+    return { user: session.user, sesion, catalogo, informe, modo };
   } catch (error) {
     redirectOnAuthError(error);
   }
@@ -84,7 +88,8 @@ function messageOf(error: unknown): string {
 }
 
 export default function PracticeSession({ loaderData }: Route.ComponentProps) {
-  const { sesion, catalogo, informe } = loaderData;
+  const { sesion, catalogo, informe, modo } = loaderData;
+  const modoSesion = sesion.modo ?? modo;
 
   const [historial, setHistorial] = useState<TurnoHistorial[]>(sesion.historial);
   const [estado, setEstado] = useState(sesion.estado);
@@ -96,6 +101,7 @@ export default function PracticeSession({ loaderData }: Route.ComponentProps) {
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [ending, setEnding] = useState(false);
   const [muted, setMuted] = useState(() => {
     if (typeof window === "undefined") {
       return false;
@@ -106,6 +112,59 @@ export default function PracticeSession({ loaderData }: Route.ComponentProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   const lastAgentRef = useRef<string | null>(null);
+  const closeInFlightRef = useRef(false);
+  const autoCloseTimerRef = useRef<number | null>(null);
+
+  const closeAndShowReport = useCallback(async () => {
+    if (closeInFlightRef.current) {
+      return;
+    }
+    closeInFlightRef.current = true;
+    if (autoCloseTimerRef.current !== null) {
+      window.clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = null;
+    }
+    setClosing(true);
+    setError(null);
+    try {
+      const reporte = await closeSession(sesion.id_sesion);
+      setInformeActual(reporte);
+      setEstado("concluida");
+      setConfirmOpen(false);
+      cancelSpeech();
+    } catch (cause) {
+      setError(messageOf(cause));
+      setConfirmOpen(false);
+      setEnding(false);
+    } finally {
+      closeInFlightRef.current = false;
+      setClosing(false);
+    }
+  }, [sesion.id_sesion]);
+
+  const beginFarewell = useCallback(
+    (texto: string) => {
+      setEnding(true);
+      if (!muted && speechSupported()) {
+        const started = speak(texto, {
+          onEnd: () => {
+            void closeAndShowReport();
+          },
+        });
+        if (started) {
+          const words = texto.trim().split(/\s+/).length;
+          const timeout = Math.min(45000, Math.max(10000, words * 600 + 5000));
+          autoCloseTimerRef.current = window.setTimeout(() => {
+            autoCloseTimerRef.current = null;
+            void closeAndShowReport();
+          }, timeout);
+          return;
+        }
+      }
+      void closeAndShowReport();
+    },
+    [muted, closeAndShowReport],
+  );
 
   useEffect(() => {
     const last = [...historial].reverse().find((turno) => turno.rol === "agente");
@@ -114,15 +173,33 @@ export default function PracticeSession({ loaderData }: Route.ComponentProps) {
     }
     if (lastAgentRef.current === null) {
       lastAgentRef.current = last.fecha;
+      const esSaludoInicial = historial.length === 1 && estado === "activa";
+      if (esSaludoInicial) {
+        if (last.finalizada) {
+          beginFarewell(last.contenido);
+        } else if (!muted && speechSupported()) {
+          speak(last.contenido);
+        }
+        return;
+      }
+      if (estado === "activa" && last.finalizada) {
+        setEnding(true);
+        void closeAndShowReport();
+      }
       return;
     }
-    if (last.fecha !== lastAgentRef.current) {
-      lastAgentRef.current = last.fecha;
-      if (!muted && speechSupported()) {
-        speak(last.contenido);
-      }
+    if (last.fecha === lastAgentRef.current) {
+      return;
     }
-  }, [historial, muted]);
+    lastAgentRef.current = last.fecha;
+    if (estado === "activa" && last.finalizada) {
+      beginFarewell(last.contenido);
+      return;
+    }
+    if (!muted && speechSupported()) {
+      speak(last.contenido);
+    }
+  }, [historial, muted, estado, beginFarewell, closeAndShowReport]);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -131,7 +208,21 @@ export default function PracticeSession({ loaderData }: Route.ComponentProps) {
     }
   }, [historial, sending]);
 
-  useEffect(() => cancelSpeech, []);
+  useEffect(() => {
+    activeSessionViews += 1;
+    return () => {
+      activeSessionViews -= 1;
+      window.setTimeout(() => {
+        if (activeSessionViews === 0) {
+          cancelSpeech();
+        }
+      }, 0);
+      if (autoCloseTimerRef.current !== null) {
+        window.clearTimeout(autoCloseTimerRef.current);
+        autoCloseTimerRef.current = null;
+      }
+    };
+  }, []);
 
   function handleScroll() {
     const element = scrollRef.current;
@@ -143,14 +234,15 @@ export default function PracticeSession({ loaderData }: Route.ComponentProps) {
   }
 
   function toggleMute() {
-    setMuted((current) => {
-      const next = !current;
-      if (next) {
-        cancelSpeech();
+    const next = !muted;
+    setMuted(next);
+    window.localStorage.setItem(MUTE_KEY, next ? "1" : "0");
+    if (next) {
+      cancelSpeech();
+      if (ending) {
+        void closeAndShowReport();
       }
-      window.localStorage.setItem(MUTE_KEY, next ? "1" : "0");
-      return next;
-    });
+    }
   }
 
   async function sendText(texto: string) {
@@ -232,20 +324,7 @@ export default function PracticeSession({ loaderData }: Route.ComponentProps) {
   }
 
   async function handleClose() {
-    setClosing(true);
-    setError(null);
-    try {
-      const reporte = await closeSession(sesion.id_sesion);
-      setInformeActual(reporte);
-      setEstado("concluida");
-      setConfirmOpen(false);
-      cancelSpeech();
-    } catch (cause) {
-      setError(messageOf(cause));
-      setConfirmOpen(false);
-    } finally {
-      setClosing(false);
-    }
+    await closeAndShowReport();
   }
 
   async function handleEvaluation(input: EvaluacionCreate) {
@@ -267,7 +346,7 @@ export default function PracticeSession({ loaderData }: Route.ComponentProps) {
         <header className="sticky top-0 z-20 border-b border-line-subtle bg-canvas/90 backdrop-blur">
           <div className="mx-auto flex h-14 max-w-3xl items-center px-6">
             <Link
-              to="/practice"
+              to={rutaPractica(modoSesion)}
               className="flex items-baseline gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <span className="text-base font-semibold tracking-tight text-ink">
@@ -280,6 +359,7 @@ export default function PracticeSession({ loaderData }: Route.ComponentProps) {
         <ReportView
           informe={informeActual}
           evaluacion={evaluacion}
+          modo={modoSesion}
           onSubmitEvaluation={handleEvaluation}
         />
       </div>
@@ -293,7 +373,7 @@ export default function PracticeSession({ loaderData }: Route.ComponentProps) {
           La sesión está cerrada, pero el informe no está disponible.
         </p>
         <Link
-          to="/practice"
+          to={rutaPractica(modoSesion)}
           className="rounded-sm text-sm font-medium text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           Volver a tus prácticas
@@ -308,9 +388,10 @@ export default function PracticeSession({ loaderData }: Route.ComponentProps) {
         escenario={sesion.escenario}
         escenarioNombre={escenarioNombres[sesion.escenario]}
         nivel={sesion.nivel}
+        modo={modoSesion}
         estado={estado}
         muted={muted}
-        busy={actionPending || sending || closing}
+        busy={actionPending || sending || closing || ending}
         onToggleMute={toggleMute}
         onPause={handlePause}
         onResume={handleResume}
@@ -371,8 +452,9 @@ export default function PracticeSession({ loaderData }: Route.ComponentProps) {
           ) : null}
 
           <Composer
-            disabled={estado !== "activa" || actionPending || closing}
+            disabled={estado !== "activa" || actionPending || closing || ending}
             sending={sending}
+            modo={modoSesion}
             onSendText={sendText}
             onSendAudio={sendAudio}
           />

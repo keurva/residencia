@@ -4,7 +4,15 @@ import { defineConfig } from "vite";
 
 const API_TARGET = process.env.VITE_PROXY_TARGET ?? "http://127.0.0.1:8000";
 
-const API_PREFIXES = ["/auth", "/sessions", "/scenarios", "/health", "/ready", "/ai"];
+const API_PREFIXES = [
+  "/auth",
+  "/sessions",
+  "/metrics",
+  "/scenarios",
+  "/health",
+  "/ready",
+  "/ai",
+];
 
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter()],

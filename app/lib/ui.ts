@@ -76,3 +76,16 @@ export function formatClock(totalSeconds: number): string {
   const seconds = totalSeconds % 60;
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
+
+export function formatDuration(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  if (minutes < 1) {
+    return totalSeconds > 0 ? "Menos de 1 min" : "0 min";
+  }
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours > 0) {
+    return rest > 0 ? `${hours} h ${rest} min` : `${hours} h`;
+  }
+  return `${minutes} min`;
+}

@@ -18,6 +18,16 @@ export type UserLogin = {
   password: string;
 };
 
+export type UserEmailUpdate = {
+  email: string;
+  current_password: string;
+};
+
+export type UserPasswordUpdate = {
+  current_password: string;
+  new_password: string;
+};
+
 export type TokenPair = {
   access_token: string;
   refresh_token: string;
@@ -25,6 +35,8 @@ export type TokenPair = {
   expires_in: number;
   user: UserRead;
 };
+
+export type ModoPractica = "speaking" | "writing";
 
 export type Escenario =
   | "restaurante"
@@ -56,12 +68,14 @@ export type CatalogoRead = {
 export type SesionCreate = {
   escenario: Escenario;
   nivel: NivelMCER;
+  modo: ModoPractica;
 };
 
 export type TurnoHistorial = {
   rol: RolTurno;
   contenido: string;
   fecha: string;
+  finalizada?: boolean;
 };
 
 export type EvaluacionSistema = {
@@ -74,6 +88,7 @@ export type SesionResumen = {
   id_sesion: string;
   escenario: Escenario;
   nivel: NivelMCER;
+  modo?: ModoPractica | null;
   estado: EstadoSesion;
   fecha_inicio: string;
   fecha_fin?: string | null;
@@ -130,6 +145,23 @@ export type InformeRead = {
 export type EvaluacionCreate = {
   calificacion: number;
   comentario?: string | null;
+};
+
+export type ErrorGramaticalFrecuente = {
+  original: string;
+  correccion: string;
+  explicacion: string;
+  veces: number;
+};
+
+export type MetricasResumen = {
+  total_sesiones: number;
+  sesiones_concluidas: number;
+  sesiones_en_curso: number;
+  ultima_practica: string | null;
+  tiempo_total_segundos: number;
+  errores_por_tipo: Record<TipoError, number>;
+  errores_gramaticales: ErrorGramaticalFrecuente[];
 };
 
 export type ErrorDetail = {

@@ -2,6 +2,7 @@ import { ArrowUp, Loader2, Mic, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useRecorder } from "../../hooks/useRecorder";
+import type { ModoPractica } from "../../lib/practice-mode";
 import { formatClock } from "../../lib/ui";
 import { Button } from "../Button";
 import { Waveform } from "../Waveform";
@@ -12,6 +13,7 @@ const MAX_CHARS = 2000;
 type ComposerProps = {
   disabled: boolean;
   sending: boolean;
+  modo: ModoPractica;
   onSendText: (texto: string) => void;
   onSendAudio: (blob: Blob) => void;
 };
@@ -19,6 +21,7 @@ type ComposerProps = {
 export function Composer({
   disabled,
   sending,
+  modo,
   onSendText,
   onSendAudio,
 }: ComposerProps) {
@@ -90,6 +93,36 @@ export function Composer({
     );
   }
 
+  if (modo === "speaking") {
+    return (
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={() => void recorder.start()}
+            disabled={busy || requesting}
+            aria-label="Grabar respuesta con el micrófono"
+            title="Grabar respuesta"
+          >
+            {requesting ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Mic className="h-4 w-4" aria-hidden="true" />
+            )}
+            {requesting ? "Solicitando micrófono…" : "Hablar en inglés"}
+          </Button>
+          <p className="text-sm text-ink-3">
+            Presiona el botón y responde en inglés. Máx. 2:00.
+          </p>
+        </div>
+        {recorder.error ? (
+          <p role="alert" className="text-xs text-danger">
+            {recorder.error}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <form
@@ -131,21 +164,6 @@ export function Composer({
           ) : null}
         </div>
         <Button
-          variant="secondary"
-          size="icon"
-          onClick={() => void recorder.start()}
-          disabled={busy}
-          aria-label="Grabar respuesta con el micrófono"
-          title="Grabar respuesta"
-          className="h-10 w-10 border-accent-soft-strong bg-accent-soft text-accent hover:bg-accent-soft-strong focus-visible:bg-accent-soft-strong"
-        >
-          {requesting ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <Mic className="h-4 w-4" aria-hidden="true" />
-          )}
-        </Button>
-        <Button
           type="submit"
           size="icon"
           disabled={!text.trim() || busy}
@@ -156,16 +174,9 @@ export function Composer({
           <ArrowUp className="h-4 w-4" aria-hidden="true" />
         </Button>
       </form>
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-xs text-ink-3">
-          Enter para enviar · Shift + Enter para otra línea
-        </p>
-        {recorder.error ? (
-          <p role="alert" className="text-xs text-danger">
-            {recorder.error}
-          </p>
-        ) : null}
-      </div>
+      <p className="text-xs text-ink-3">
+        Enter para enviar · Shift + Enter para otra línea
+      </p>
     </div>
   );
 }
